@@ -1,25 +1,19 @@
 """Run all crawlers and save to MongoDB."""
-from typing import List
+from typing import Callable, List, Optional, Tuple
 from datetime import datetime
 
 from app.config import EXTRACT_CONTENT
-from app.crawler import crawl_bbc, crawl_reuters, crawl_crypto, crawl_nyt, crawl_robotics, crawl_ai
+from app.crawler import crawl_nhk
 from app.models import Article
 from app.database import save_articles, get_articles_collection
 from app.extractor import extract_content, extract_hero_image
 from app.ai import translate_article_content
-from app.ai.translate_service import translate_title_and_summary
+from app.ai.translate_service import translate_title_and_summary, translate_content_from_paragraph_list
 
 
 def run_all_crawlers() -> int:
-    """Run BBC, Reuters, Crypto, Robotics, AI (and NYT if configured). Save to DB. Return total saved count."""
-    articles: List[Article] = []
-    articles.extend(crawl_bbc())
-    articles.extend(crawl_reuters())
-    articles.extend(crawl_crypto())
-    articles.extend(crawl_nyt())
-    articles.extend(crawl_robotics())
-    articles.extend(crawl_ai())
+    """Run crawler NHK (tất cả category từ config). Save to DB. Return total saved count."""
+    articles: List[Article] = list(crawl_nhk())
 
     if EXTRACT_CONTENT:
         for article in articles:
@@ -31,25 +25,26 @@ def run_all_crawlers() -> int:
 
 def run_translation(limit: int = 0) -> int:
     """
-    Translate articles that have content but no content_VN.
+    Translate articles that have content but no content_vn_paragrap_list (or empty).
     Runs sequentially (single-threaded).
-    
+
     Args:
         limit: Max number of articles to translate. 0 = no limit.
-    
+
     Returns:
         Number of articles translated.
     """
     col = get_articles_collection()
-    
+
     query = {
         "content": {"$ne": None, "$exists": True},
         "$or": [
-            {"content_VN": None},
-            {"content_VN": {"$exists": False}}
-        ]
+            {"content_vn_paragrap_list": None},
+            {"content_vn_paragrap_list": {"$exists": False}},
+            {"content_vn_paragrap_list": []},
+        ],
     }
-    
+
     cursor = col.find(query)
     if limit > 0:
         cursor = cursor.limit(limit)
@@ -68,16 +63,33 @@ def run_translation(limit: int = 0) -> int:
         #print(f"Translating article {i+1}/{total}...")
         content = doc.get("content", "")
         full_title = doc.get("title", "")
-        #print(f"Full title: {full_title}")
-        content_vn = translate_article_content_raw(content, full_title)
         doc_id = doc["_id"]
         title = full_title[:50]
-        #print(f"Translated article {i+1}/{total}...")
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        if content_vn:
+
+        def save_jp_paragraphs(paragrap_list: List[str]) -> None:
+            """Lưu content_jp_paragrap_list vào DB ngay sau format+split (trước khi dịch)."""
             col.update_one(
                 {"_id": doc_id},
-                {"$set": {"content_VN": content_vn}}
+                {"$set": {"content_jp_paragrap_list": paragrap_list}}
+            )
+
+        def save_vn_paragraphs(paragrap_list: List[str]) -> None:
+            """Lưu content_vn_paragrap_list vào DB sau khi dịch từng đoạn (map 1:1)."""
+            col.update_one(
+                {"_id": doc_id},
+                {"$set": {"content_vn_paragrap_list": paragrap_list}}
+            )
+
+        content_jp_paragrap_list, content_vn_paragrap_list = translate_article_content_raw(
+            content, full_title,
+            on_jp_paragraphs_ready=save_jp_paragraphs,
+            on_vn_paragraphs_ready=save_vn_paragraphs,
+        )
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        if content_vn_paragrap_list:
+            col.update_one(
+                {"_id": doc_id},
+                {"$set": {"content_vn_paragrap_list": content_vn_paragrap_list}}
             )
             translated_count += 1
             print(f"[{i+1}/{total}] [{timestamp}] ✓ {title}...")
@@ -88,10 +100,133 @@ def run_translation(limit: int = 0) -> int:
     return translated_count
 
 
-def translate_article_content_raw(content: str, title: str) -> str:
-    """Wrapper to call translate service with raw content and title."""
+def translate_article_content_raw(
+    content: str,
+    title: str,
+    on_jp_paragraphs_ready: Optional[Callable[[List[str]], None]] = None,
+    on_vn_paragraphs_ready: Optional[Callable[[List[str]], None]] = None,
+) -> Tuple[List[str], List[str]]:
+    """
+    Wrapper to call translate service with raw content and title.
+    on_jp_paragraphs_ready(list) được gọi ngay sau format+split để save content_jp_paragrap_list vào DB.
+    on_vn_paragraphs_ready(list) được gọi sau khi dịch xong từng đoạn (content_vn_paragrap_list, map 1:1).
+    Returns (content_jp_paragrap_list, content_vn_paragrap_list).
+    """
     from app.ai.translate_service import translate_and_format
-    return translate_and_format(content, title)
+    return translate_and_format(
+        content, title,
+        on_jp_paragraphs_ready=on_jp_paragraphs_ready,
+        on_vn_paragraphs_ready=on_vn_paragraphs_ready,
+    )
+
+
+def run_translate_paragraphs(limit: int = 0) -> int:
+    """
+    Dịch từng đoạn cho bài đã có content_jp_paragrap_list nhưng chưa có content_vn_paragrap_list.
+    Gọi translate_content_from_paragraph_list (Ollama), lưu content_vn_paragrap_list (map 1:1).
+
+    Cách gọi từ terminal: python run.py translate-para [--limit N]
+    """
+    from app.config import ENABLE_TRANSLATION
+
+    if not ENABLE_TRANSLATION:
+        print("Translation is disabled (ENABLE_TRANSLATION=False).")
+        return 0
+
+    col = get_articles_collection()
+    query = {
+        "content_jp_paragrap_list": {"$exists": True, "$ne": None, "$type": "array"},
+        "$or": [
+            {"content_vn_paragrap_list": None},
+            {"content_vn_paragrap_list": {"$exists": False}},
+            {"content_vn_paragrap_list": []},
+        ],
+    }
+    cursor = col.find(query)
+    if limit > 0:
+        cursor = cursor.limit(limit)
+    articles = list(cursor)
+    total = len(articles)
+
+    if total == 0:
+        print("No articles need paragraph translation (all have content_vn_paragrap_list or no content_jp_paragrap_list).")
+        return 0
+
+    print(f"Found {total} articles to translate (paragraph by paragraph).")
+    done = 0
+    for i, doc in enumerate(articles):
+        doc_id = doc["_id"]
+        title = (doc.get("title") or "")[:80]
+        content_jp_paragrap_list = doc.get("content_jp_paragrap_list") or []
+        if not content_jp_paragrap_list:
+            continue
+        content_vn_paragrap_list = translate_content_from_paragraph_list(content_jp_paragrap_list, title)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        if content_vn_paragrap_list:
+            col.update_one(
+                {"_id": doc_id},
+                {"$set": {"content_vn_paragrap_list": content_vn_paragrap_list}},
+            )
+            done += 1
+            print(f"[{i+1}/{total}] [{timestamp}] ✓ {title}... ({len(content_vn_paragrap_list)} paragraphs)")
+        else:
+            print(f"[{i+1}/{total}] [{timestamp}] ✗ {title}...")
+    print(f"\nCompleted: {done}/{total} articles (translate paragraphs).")
+    return done
+
+
+def run_format_japanese(limit: int = 0) -> int:
+    """
+    Format nội dung tiếng Nhật cho các bài có content nhưng chưa có content_jp_paragrap_list
+    (hoặc list rỗng). Chỉ format + split, lưu content_jp_paragrap_list vào DB, không dịch.
+
+    Args:
+        limit: Số bài tối đa (0 = không giới hạn).
+
+    Returns:
+        Số bài đã format và lưu content_jp_paragrap_list.
+    """
+    from app.ai.translate_service import format_japanese_content, filter_jp_paragraph_list_for_save
+
+    col = get_articles_collection()
+    query = {
+        "content": {"$ne": None, "$exists": True},
+        "$or": [
+            {"content_jp_paragrap_list": {"$exists": False}},
+            {"content_jp_paragrap_list": None},
+            {"content_jp_paragrap_list": []},
+        ],
+    }
+    cursor = col.find(query)
+    if limit > 0:
+        cursor = cursor.limit(limit)
+    articles = list(cursor)
+    total = len(articles)
+
+    if total == 0:
+        print("No articles need format Japanese (all have content_jp_paragrap_list).")
+        return 0
+
+    print(f"Found {total} articles to format Japanese.")
+    done = 0
+    for i, doc in enumerate(articles):
+        content = doc.get("content", "") or ""
+        doc_id = doc["_id"]
+        title = (doc.get("title") or "")[:50]
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_full, content_jp_paragrap_list = format_japanese_content(content)
+        content_jp_paragrap_list = filter_jp_paragraph_list_for_save(content_jp_paragrap_list)
+        col.update_one(
+            {"_id": doc_id},
+            {"$set": {"content_jp_paragrap_list": content_jp_paragrap_list}},
+        )
+        done += 1
+        n = len(content_jp_paragrap_list)
+        status = "✓" if formatted_full else "○"
+        print(f"[{i+1}/{total}] [{timestamp}] {status} {title}... (paragraphs={n})")
+
+    print(f"\nCompleted: {done}/{total} articles (content_jp_paragrap_list saved).")
+    return done
 
 
 def update_article_title_summary_vn(article_id) -> bool:
@@ -236,23 +371,21 @@ def run_extract_hero_images(limit: int = 0, size: int = 800) -> int:
 
 
 def _all_vn_fields_set(doc: dict) -> bool:
-    """Return True if title_vn, summary_vn, content_VN are all non-null and non-empty."""
+    """Return True if title_vn and content_vn_paragrap_list are both non-null (list non-empty)."""
     title_vn = doc.get("title_vn")
-    summary_vn = doc.get("summary_vn")
-    content_vn = doc.get("content_VN")
+    content_vn_paragrap_list = doc.get("content_vn_paragrap_list")
     return (
         title_vn is not None
         and title_vn != ""
-        and summary_vn is not None
-        and summary_vn != ""
-        and content_vn is not None
-        and content_vn != ""
+        and content_vn_paragrap_list is not None
+        and isinstance(content_vn_paragrap_list, list)
+        and len(content_vn_paragrap_list) > 0
     )
 
 
 def set_is_show_for_article(article_id) -> bool:
     """
-    If title_vn, summary_vn, content_VN are all non-null and non-empty, set isShow = True.
+    If title_vn and content_vn_paragrap_list are both non-null (list non-empty), set isShow = True.
     article_id: MongoDB _id (ObjectId or str).
     Returns True if isShow was set to True, False otherwise.
     """
@@ -269,14 +402,13 @@ def set_is_show_for_article(article_id) -> bool:
 
 def run_update_is_show(limit: int = 0) -> int:
     """
-    For all articles where title_vn, summary_vn, content_VN are all non-null and non-empty,
+    For all articles where title_vn and content_vn_paragrap_list are both non-null (list non-empty),
     set isShow = True. Returns number of documents updated.
     """
     col = get_articles_collection()
     query = {
         "title_vn": {"$exists": True, "$nin": [None, ""]},
-        "summary_vn": {"$exists": True, "$nin": [None, ""]},
-        "content_VN": {"$exists": True, "$nin": [None, ""]},
+        "content_vn_paragrap_list": {"$exists": True, "$ne": None, "$type": "array"},
     }
     cursor = col.find(query)
     if limit > 0:

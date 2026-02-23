@@ -12,8 +12,8 @@ except ImportError:
     RSS_FEEDS_BY_CATEGORY = {}
 
 # Site branding (can be overridden via env if needed)
-SITE_NAME = "News AI"
-SITE_TAGLINE = "Tin tức thông minh - Tổng hợp & dịch bằng AI"
+SITE_NAME = "Sugoi News"
+SITE_TAGLINE = "Học tiếng Nhật qua tin tức - Tổng hợp & dịch bằng AI"
 DEFAULT_OG_IMAGE = "/static/img/og-default.png"  # optional fallback
 META_DESC_MAX_LEN = 160
 KEYWORDS_HOME = "tin tức, news, AI, dịch tin tức, tổng hợp tin, tin thế giới, kinh tế, công nghệ, crypto"

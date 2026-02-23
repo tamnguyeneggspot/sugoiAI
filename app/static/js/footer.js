@@ -13,8 +13,8 @@ function renderFooter(options) {
     const opts = options || {};
     const year = opts.year !== undefined ? opts.year : (parseInt(document.body.dataset.footerYear, 10) || new Date().getFullYear());
     const showTechStack = opts.showTechStack !== undefined ? opts.showTechStack : (document.body.dataset.footerShowTech !== 'false');
-    const companyName = opts.companyName || document.body.dataset.footerCompanyName || 'News AI';
-    const tagline = opts.tagline || document.body.dataset.footerTagline || 'Tin tức thông minh';
+    const companyName = opts.companyName || document.body.dataset.footerCompanyName || 'Sugoi News';
+    const tagline = opts.tagline || document.body.dataset.footerTagline || 'Học tiếng Nhật qua tin tức';
 
     const footerHtml = `
     <footer class="bg-gray-900 dark:bg-black text-gray-300 mt-12 transition-colors">

@@ -11,6 +11,8 @@ if str(_root) not in sys.path:
 from app.scheduler import (
     run_all_crawlers,
     run_translation,
+    run_translate_paragraphs,
+    run_format_japanese,
     run_extract_hero_images,
     run_translate_title_summary,
     run_update_is_show,
@@ -23,8 +25,8 @@ def main() -> None:
         "command",
         nargs="?",
         default="crawl",
-        choices=["crawl", "translate", "title-summary", "hero", "is-show", "all"],
-        help="Command to run: crawl, translate, title-summary, hero, is-show, or all (default: crawl)"
+        choices=["crawl", "translate", "translate-para", "format-jp", "title-summary", "hero", "is-show", "all"],
+        help="Command: crawl, translate, translate-para, format-jp, title-summary, hero, is-show, or all (default: crawl)"
     )
     parser.add_argument(
         "--limit",
@@ -57,6 +59,14 @@ def main() -> None:
     elif args.command == "translate":
         n = run_translation(limit=args.limit)
         print(f"Translated {n} articles.")
+
+    elif args.command == "translate-para":
+        n = run_translate_paragraphs(limit=args.limit)
+        print(f"Translated paragraphs for {n} articles.")
+
+    elif args.command == "format-jp":
+        n = run_format_japanese(limit=args.limit)
+        print(f"Format Japanese (content_jp_paragrap_list) for {n} articles.")
 
     elif args.command == "title-summary":
         n = run_translate_title_summary(limit=args.limit)

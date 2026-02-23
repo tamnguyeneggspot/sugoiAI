@@ -18,8 +18,8 @@ function renderHeader(options) {
             </svg>
         </div>
         <div>
-            <h1 class="text-xl font-bold text-gray-900 dark:text-white">News AI</h1>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Tin tức thông minh</p>
+            <h1 class="text-xl font-bold text-gray-900 dark:text-white">Sugoi News</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Học tiếng Nhật qua tin tức</p>
         </div>`;
 
     const logoBlock = linkLogo

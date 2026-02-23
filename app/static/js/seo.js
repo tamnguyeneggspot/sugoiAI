@@ -5,7 +5,7 @@
 (function (global) {
     'use strict';
 
-    var SITE_NAME = 'News AI';
+    var SITE_NAME = 'Sugoi News';
     var META_DESC_MAX = 160;
 
     function escapeAttr(str) {
@@ -118,7 +118,7 @@
             return data;
         }).catch(function () {
             setPageSEO({
-                title: SITE_NAME + ' - Tin tức thông minh',
+                title: SITE_NAME + ' - Học tiếng Nhật qua tin tức',
                 description: 'Nền tảng tổng hợp tin tức đa nguồn với dịch tự động sang tiếng Việt. Cập nhật tin thế giới, kinh tế, công nghệ và crypto từ các nguồn uy tín.',
                 keywords: 'tin tức, news, AI, dịch tin tức, tổng hợp tin, tin thế giới, kinh tế, công nghệ, crypto',
                 og_type: 'website'

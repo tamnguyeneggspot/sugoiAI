@@ -1,4 +1,4 @@
-// News AI Application
+// Sugoi News - Học tiếng Nhật qua tin tức
 
 // State
 let currentPage = 1;
@@ -93,7 +93,7 @@ function createFeaturedCard(article, index) {
     div.style.animationDelay = `${index * 80}ms`;
     div.onclick = () => { window.location.href = '/article?id=' + encodeURIComponent(article.id); };
 
-    const displayTitle = article.title_vn || article.title;
+    const displayTitle = article.title ?? '';
     const thumbnail = article.thumbnail || article.content_top_image || `https://picsum.photos/seed/${encodeURIComponent(displayTitle)}/400/240`;
     const publishedDate = article.published ? new Date(article.published).toLocaleDateString('vi-VN', {
         year: 'numeric',
@@ -102,7 +102,7 @@ function createFeaturedCard(article, index) {
     }) : '';
     const sourceLabel = article.source || 'Unknown';
     const categoryColor = getCategoryColor(article.category);
-    const summaryPlain = stripHtml(article.summary_vn || article.summary || '');
+    const summaryPlain = stripHtml(article.title_vn || '');
 
     div.innerHTML = `
         <div class="relative h-44 sm:h-52 overflow-hidden">
@@ -292,7 +292,7 @@ function createArticleCard(article, index) {
     div.style.animationDelay = `${index * 50}ms`;
     div.onclick = () => { window.location.href = '/article?id=' + encodeURIComponent(article.id); };
 
-    const displayTitle = article.title_vn || article.title;
+    const displayTitle = article.title ?? '';
     const thumbnail = article.thumbnail || `https://picsum.photos/seed/${encodeURIComponent(displayTitle)}/400/240`;
     const publishedDate = article.published ? new Date(article.published).toLocaleDateString('vi-VN', {
         year: 'numeric',
@@ -324,7 +324,7 @@ function createArticleCard(article, index) {
                 ${escapeHtml(displayTitle)}
             </h3>
             <p class="article-card-summary text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-4">
-                ${escapeHtml(stripHtml(article.summary_vn || article.summary || ''))}
+                ${escapeHtml(stripHtml(article.title_vn || ''))}
             </p>
             <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
                 <span>${publishedDate}</span>
@@ -344,14 +344,10 @@ function createArticleCard(article, index) {
 // Get category color
 function getCategoryColor(category) {
     const colors = {
-        'Tin thế giới': 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
-        'Kinh tế': 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
-        'Công nghệ': 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300',
-        'Khoa học & Môi trường': 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300',
-        'Sức khỏe': 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300',
+        'Tin chính': 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
         'Thể thao': 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
-        'Crypto': 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300',
-        'Reuters World': 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+        'Giải trí': 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300',
+        'Chính luận': 'bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300',
     };
     return colors[category] || 'bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300';
 }

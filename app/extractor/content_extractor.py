@@ -63,8 +63,8 @@ def extract_content(url: str) -> Optional[str]:
 
 def extract_hero_image(url: str, size: int = 800) -> Optional[str]:
     """
-    Extract hero image from BBC article URL.
-    Prioritizes cpsprodpb images from hero-image element over branded_news og:image.
+    Extract hero image from article URL.
+    Prioritizes cpsprodpb images from hero-image element (BBC) over og:image.
     Available sizes: 240, 320, 480, 640, 800, 1024, 1536
     """
     html = _fetch_html(url)

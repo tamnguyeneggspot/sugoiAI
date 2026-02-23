@@ -18,10 +18,11 @@ class Article(BaseModel):
     published: Optional[datetime] = None
     crawled_at: datetime = Field(default_factory=datetime.utcnow)
     content: Optional[str] = None  # full text if extracted
-    content_VN: Optional[str] = None  # translated & formatted Vietnamese content
+    content_jp_paragrap_list: Optional[list[str]] = None  # từng đoạn JP (sau format)
+    content_vn_paragrap_list: Optional[list[str]] = None  # từng đoạn VN (map 1:1 với content_jp_paragrap_list)
     title_vn: Optional[str] = None  # translated Vietnamese title
     summary_vn: Optional[str] = None  # translated Vietnamese summary
-    isShow: Optional[bool] = None  # true when title_vn, summary_vn, content_VN are all set
+    isShow: Optional[bool] = None  # true when title_vn and content_vn_paragrap_list are both set
 
     class Config:
         from_attributes = True

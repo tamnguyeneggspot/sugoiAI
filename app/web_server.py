@@ -20,7 +20,7 @@ from app.api import router as api_router
 from app.limiter import limiter
 
 app = FastAPI(
-    title="News AI System",
+    title="Sugoi News - Học tiếng Nhật qua tin tức",
     description="AI-powered news aggregator with Vietnamese translation",
     version="1.0.0",
 )

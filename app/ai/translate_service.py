@@ -1,15 +1,48 @@
 """Translation and formatting service using Ollama."""
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Callable, Optional
 from ollama import Client
+
+
+def paragraphs_from_text(text: str) -> list[str]:
+    """
+    Chia nội dung thành list các paragraph (theo \\n\\n). Dùng để lưu content_jp_paragrap_list
+    và sau này map 1-1 với content_vn_paragrap_list.
+    """
+    if not text or not text.strip():
+        return []
+    return [p.strip() for p in text.split("\n\n") if p.strip()]
 
 from app.config import OLLAMA_BASE_URL, OLLAMA_MODEL, ENABLE_TRANSLATION
 
-# Chỉ chạy step 2 (format) khi bản dịch đủ dài; dưới ngưỡng này giữ nguyên bản dịch thô
-MIN_LENGTH_FOR_FORMAT = 400
 # Chunking: mỗi chunk tối đa bao nhiêu ký tự để phù hợp context qwen3:8b
 MAX_CHARS_PER_CHUNK = 3500
+
+# Không lưu các paragraph cuối nếu thuộc paywall/ghi chú (bỏ trước khi save).
+# - "この記事は有料記事です。" / "（全文": có khi tách thành 2 đoạn ("この記事は有料記事です。" rồi "残り1828文字（全文2941文字）")
+#   nên phải lặp xóa last và cần cả "（全文" để xóa luôn đoạn thứ hai.
+JP_SAVE_DROP_LAST_IF_CONTAINS = ("【時系列で見る】", "この記事は有料記事です。", "（全文")
+
+
+def filter_jp_paragraph_list_for_save(lst: list[str]) -> list[str]:
+    """
+    Trước khi lưu: nếu paragraph tại last_index chứa paywall/ghi chú thì remove, lặp đến khi không còn.
+    (Paywall có thể 2 đoạn: "この記事は有料記事です。" rồi "残り1828文字（全文2941文字）" nên cần lặp + marker "（全文".)
+    """
+    if not lst:
+        return lst
+    result = list(lst)
+    while result:
+        last_index = len(result) - 1
+        last_content = (result[last_index] or "").strip()
+        if not last_content:
+            break
+        if any(marker in last_content for marker in JP_SAVE_DROP_LAST_IF_CONTAINS):
+            result.pop(last_index)
+        else:
+            break
+    return result
 
 
 def _call_ollama(prompt: str, max_retries: int = 2) -> Optional[str]:
@@ -30,6 +63,24 @@ def _call_ollama(prompt: str, max_retries: int = 2) -> Optional[str]:
                 print(f"[Ollama] Attempt {attempt + 1} failed: {e}. Retrying...")
     print(f"[Ollama] Error after {max_retries + 1} attempts: {last_error}")
     return None
+
+
+def _contains_japanese(text: str) -> bool:
+    """
+    Return True if text contains Japanese characters (Hiragana, Katakana, or Kanji).
+    Used to ensure content_vn_paragrap_list is 100% Vietnamese.
+    """
+    if not text or not text.strip():
+        return False
+    # Hiragana: \u3040-\u309f, Katakana: \u30a0-\u30ff, CJK Unified Ideographs (Kanji): \u4e00-\u9faf
+    for ch in text:
+        if (
+            "\u3040" <= ch <= "\u309f"
+            or "\u30a0" <= ch <= "\u30ff"
+            or "\u4e00" <= ch <= "\u9faf"
+        ):
+            return True
+    return False
 
 
 def _strip_model_commentary(text: str) -> str:
@@ -124,6 +175,56 @@ def translate_short_text(text: str) -> Optional[str]:
     return _call_ollama(prompt)
 
 
+def translate_content_from_paragraph_list(
+    content_jp_paragrap_list: list[str],
+    title: str = "",
+) -> list[str]:
+    """
+    Dịch từng đoạn trong content_jp_paragrap_list sang tiếng Việt bằng Ollama (tuần tự).
+    Map 1:1: content_vn_paragrap_list[i] = bản dịch của content_jp_paragrap_list[i].
+    Bản dịch chủ yếu tiếng Việt; có thể còn chữ Nhật khi model giữ tên công ty/địa danh theo yêu cầu.
+    Đoạn rỗng hoặc dịch lỗi sẽ là chuỗi rỗng "" tại index tương ứng.
+    """
+    if not content_jp_paragrap_list:
+        return []
+    _only_output = "Chỉ trả về đúng bản dịch, không giải thích, không bình luận, không hỏi lại."
+    _keep_format = "Giữ nguyên format của đoạn gốc: cùng số dòng, gạch đầu dòng, tiêu đề (##), danh sách đánh số — chỉ dịch nội dung, không thay đổi cấu trúc."
+    _vietnamese_only = "Bắt buộc: Kết quả phải 100% tiếng Việt. Không được để lại bất kỳ chữ tiếng Nhật (kanji, hiragana, katakana) nào trong bản dịch — mọi nội dung đều phải được dịch sang tiếng Việt."
+    content_vn_paragrap_list: list[str] = []
+    for i, jp_para in enumerate(content_jp_paragrap_list):
+        if not jp_para or not jp_para.strip():
+            content_vn_paragrap_list.append("")
+            continue
+        prompt = f"""Dịch đoạn văn sau từ tiếng Nhật sang tiếng Việt. Giữ nguyên tên riêng, địa danh, tên công ty. {_keep_format} {_vietnamese_only} {_only_output}
+"""
+        if title and i == 0:
+            prompt += f"\nTiêu đề: {title}\n\n"
+        prompt += f"Nội dung cần dịch:\n{jp_para.strip()}"
+        out = _call_ollama(prompt)
+        if out:
+            out = _strip_model_commentary(out)
+            # Đảm bảo 100% tiếng Việt: nếu còn chữ Nhật thì retry tối đa 2 lần
+            for _ in range(2):
+                if not _contains_japanese(out):
+                    break
+                retry_prompt = f"""Bản dịch trước vẫn còn chữ tiếng Nhật. Nhiệm vụ: dịch toàn bộ đoạn sau từ tiếng Nhật sang tiếng Việt. Đầu ra bắt buộc 100% tiếng Việt, không được để lại bất kỳ ký tự tiếng Nhật (hiragana, katakana, kanji) nào. Chỉ trả về bản dịch tiếng Việt.
+
+Đoạn tiếng Nhật cần dịch:
+{jp_para.strip()}"""
+                out_retry = _call_ollama(retry_prompt)
+                if out_retry:
+                    out_retry = _strip_model_commentary(out_retry)
+                    if not _contains_japanese(out_retry):
+                        out = out_retry
+                        break
+                    out = out_retry  # thử dùng bản retry cho lần sau
+            # Cho phép giữ lại chữ Nhật nếu là tên công ty/địa danh (theo yêu cầu "Giữ nguyên tên riêng, địa danh, tên công ty"); không xóa đoạn
+            content_vn_paragrap_list.append(out)
+        else:
+            content_vn_paragrap_list.append("")
+    return content_vn_paragrap_list
+
+
 def translate_title_and_summary(title: str, summary: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
     """
     Translate title and summary to Vietnamese.
@@ -138,8 +239,8 @@ def translate_title_and_summary(title: str, summary: Optional[str] = None) -> tu
 
 def translate_to_vietnamese(content: str, title: str = "") -> Optional[str]:
     """
-    Bước 1: Dịch 100% sang tiếng Việt (giữ tên riêng, địa danh, tên công ty).
-    Nội dung dài được chia theo paragraph, dịch từng chunk rồi nối lại.
+    Dịch nội dung tiếng Nhật (có thể đã qua format_japanese_content) sang tiếng Việt.
+    Giữ tên riêng, địa danh, tên công ty. Nội dung dài được chia theo paragraph, dịch từng chunk rồi nối lại.
     """
     if not content:
         return None
@@ -149,7 +250,7 @@ def translate_to_vietnamese(content: str, title: str = "") -> Optional[str]:
     _only_output = "Chỉ trả về đúng bản dịch, không giải thích, không bình luận, không hỏi lại, không gợi ý (summary/format/clarify). Nếu nội dung lặp hoặc dài, vẫn chỉ xuất bản dịch."
 
     if len(chunks) == 1:
-        prompt = f"""Dịch toàn bộ nội dung sau sang tiếng Việt. Giữ nguyên tên riêng, địa danh, tên công ty. {_only_output}
+        prompt = f"""Dịch toàn bộ nội dung sau từ tiếng Nhật sang tiếng Việt. Giữ nguyên tên riêng, địa danh, tên công ty. {_only_output}
 
 Tiêu đề: {title}
 
@@ -165,14 +266,14 @@ Nội dung:
     for i, chunk in enumerate(chunks):
         part_label = f"Phần {i + 1}/{num_chunks}"
         if i == 0:
-            prompt = f"""Đây là {part_label} của một bài viết. Nhiệm vụ: DỊCH toàn bộ nội dung dưới đây từ tiếng Anh sang tiếng Việt. Đây là đoạn văn nguồn cần dịch, KHÔNG phải câu hỏi của người dùng, KHÔNG phải dữ liệu cần phân tích. Giữ nguyên tên riêng, địa danh, tên công ty. {_only_output}
+            prompt = f"""Đây là {part_label} của một bài viết. Nhiệm vụ: DỊCH toàn bộ nội dung dưới đây từ tiếng Nhật sang tiếng Việt. Đây là đoạn văn nguồn cần dịch, KHÔNG phải câu hỏi của người dùng, KHÔNG phải dữ liệu cần phân tích. Giữ nguyên tên riêng, địa danh, tên công ty. {_only_output}
 
 Tiêu đề: {title}
 
 Nội dung cần dịch:
 {chunk}"""
         else:
-            prompt = f"""Đây là {part_label} của cùng một bài viết. Nhiệm vụ: DỊCH tiếp nội dung dưới đây từ tiếng Anh sang tiếng Việt. Đây là đoạn văn nguồn (ví dụ: tin tức, bảng số liệu, danh sách) — chỉ cần dịch nguyên văn, KHÔNG giải thích, KHÔNG phân tích, KHÔNG trả lời như thể đây là câu hỏi. {_only_output}
+            prompt = f"""Đây là {part_label} của cùng một bài viết. Nhiệm vụ: DỊCH tiếp nội dung dưới đây từ tiếng Nhật sang tiếng Việt. Đây là đoạn văn nguồn (ví dụ: tin tức, bảng số liệu, danh sách) — chỉ cần dịch nguyên văn, KHÔNG giải thích, KHÔNG phân tích, KHÔNG trả lời như thể đây là câu hỏi. {_only_output}
 
 Nội dung cần dịch:
 {chunk}"""
@@ -184,81 +285,124 @@ Nội dung cần dịch:
     return "\n\n".join(translated_parts)
 
 
-FORMAT_INSTRUCTIONS = """Format lại nội dung tiếng Việt sau theo yêu cầu:
-1. Chia thành các đoạn văn rõ ràng, mỗi đoạn cách nhau 1 dòng trống
-2. Dùng gạch đầu dòng (•) cho danh sách hoặc điểm quan trọng
-3. In đậm (**text**) cho từ khóa hoặc thuật ngữ quan trọng
-4. Dùng tiêu đề phụ (## Tiêu đề) nếu nội dung dài, có nhiều phần
-Chỉ trả về nội dung đã format, không giải thích, không bình luận, không hỏi lại, không gợi ý. Nếu nội dung lặp hoặc ngắn, vẫn chỉ xuất phần đã format.
+# --- Format tiếng Nhật (trước khi dịch): chia đoạn rõ ràng, giữ nguyên tiếng Nhật ---
+FORMAT_JAPANESE_INSTRUCTIONS = """以下の日本語の文章を整形してください。
+要件:
+1. 内容はそのまま日本語で、翻訳しないでください。
+2. 段落を明確に分け、段落と段落の間は空行1行で区切ってください。
+3. 見出しやリストがある場合は適切に改行・区切りを入れてください。
+4. 内容の意味や表現は変更せず、段落分けと読みやすさだけを整えてください。
+出力は整形した日本語の文章のみ。説明やコメントは不要です。
 
-Nội dung:
+文章:
 """
 
 
-def format_vietnamese_content(content: str) -> Optional[str]:
+def format_japanese_content(content: str) -> tuple[Optional[str], list[str]]:
     """
-    Bước 2: Format nội dung tiếng Việt (đoạn văn, gạch đầu dòng, in đậm, tiêu đề phụ).
-    Nội dung dài được chia theo paragraph, format từng chunk rồi nối lại.
-    """
-    if not content:
-        return None
+    Format nội dung tiếng Nhật: chia thành các paragraph rõ ràng, giữ nguyên tiếng Nhật.
+    Dùng Ollama. Nội dung dài được chunk theo paragraph, format từng chunk rồi nối lại
+    thành một đoạn dài; từ đoạn dài đó mới split (theo \\n\\n) ra content_jp_paragrap_list.
 
-    chunks = _chunk_by_paragraphs(content, MAX_CHARS_PER_CHUNK)
+    Returns:
+        (formatted_content, content_jp_paragrap_list) — chuỗi đã format và list từng đoạn JP
+        để lưu DB, sau này dịch từng đoạn: content_jp_paragrap_list[i] -> content_vn_paragrap_list[i].
+    """
+    if not content or not content.strip():
+        return (None, [])
+
+    chunks = _chunk_by_paragraphs(content.strip(), MAX_CHARS_PER_CHUNK)
     if len(chunks) == 1:
-        out = _call_ollama(FORMAT_INSTRUCTIONS + chunks[0])
-        return _strip_model_commentary(out) if out else None
+        out = _call_ollama(FORMAT_JAPANESE_INSTRUCTIONS + chunks[0])
+        formatted_full = _strip_model_commentary(out) if out else None
+        if formatted_full is None:
+            return (None, paragraphs_from_text(content.strip()))
+        # Sau khi format xong: từ đoạn dài mới split ra list
+        content_jp_paragrap_list = paragraphs_from_text(formatted_full)
+        return (formatted_full, content_jp_paragrap_list)
 
     num_chunks = len(chunks)
-    print(f"[Format] Long content: splitting into {num_chunks} paragraph chunks (max {MAX_CHARS_PER_CHUNK} chars each).")
+    print(f"[Format JA] Long content: splitting into {num_chunks} paragraph chunks (max {MAX_CHARS_PER_CHUNK} chars each).")
     formatted_parts: list[str] = []
+    part_label_prefix = "[同じ文章の一部です。この部分だけを整形し、段落を明確に分けてください。翻訳せず日本語のまま出力。]\n\n"
     for i, chunk in enumerate(chunks):
-        part_label = f"[Phần {i + 1}/{num_chunks} của nội dung tiếng Việt, chỉ format đoạn này.]\n\n"
-        part = _call_ollama(FORMAT_INSTRUCTIONS + part_label + chunk)
+        part_label = f"[部分 {i + 1}/{num_chunks}]\n\n" if i > 0 else ""
+        prompt = FORMAT_JAPANESE_INSTRUCTIONS + part_label_prefix + part_label + chunk
+        part = _call_ollama(prompt)
         if part is None:
-            return None
+            return (None, paragraphs_from_text(content.strip()))
         formatted_parts.append(_strip_model_commentary(part))
-    return "\n\n".join(formatted_parts)
+    # Nối lại thành đoạn dài, rồi từ đoạn dài đó mới split ra content_jp_paragrap_list
+    formatted_full = "\n\n".join(formatted_parts)
+    content_jp_paragrap_list = paragraphs_from_text(formatted_full)
+    return (formatted_full, content_jp_paragrap_list)
 
 
-def translate_and_format(content: str, title: str = "") -> Optional[str]:
+def translate_and_format(
+    content: str,
+    title: str = "",
+    on_jp_paragraphs_ready: Optional[Callable[[list[str]], None]] = None,
+    on_vn_paragraphs_ready: Optional[Callable[[list[str]], None]] = None,
+) -> tuple[list[str], list[str]]:
     """
-    Dịch sang tiếng Việt (step 1) rồi format (step 2) để giảm tải prompt cho model nhỏ.
+    Bước 0: Format nội dung tiếng Nhật (chia paragraph rõ ràng, giữ nguyên tiếng Nhật).
+    Gọi on_jp_paragraphs_ready(content_jp_paragrap_list) ngay sau format+split để caller có thể save vào DB.
+    Bước 1: Dịch từng đoạn trong content_jp_paragrap_list bằng Ollama (map 1:1 -> content_vn_paragrap_list).
+    Gọi on_vn_paragraphs_ready(content_vn_paragrap_list) để caller save vào DB.
+
+    Returns:
+        (content_jp_paragrap_list, content_vn_paragrap_list).
     """
     if not ENABLE_TRANSLATION or not content:
-        return None
+        return ([], [])
 
     started_at = datetime.now().isoformat()
-    print(f"[{started_at}] Translating (step 1) | model={OLLAMA_MODEL} | content_len={len(content)}")
+    print(f"[{started_at}] Format JA (step 0) | model={OLLAMA_MODEL} | content_len={len(content)}")
+    content_to_translate, content_jp_paragrap_list = format_japanese_content(content)
+    if content_to_translate is None:
+        content_to_translate = content
+        content_jp_paragrap_list = paragraphs_from_text(content.strip())
+        print(f"[{datetime.now().isoformat()}] Step 0 skipped (format failed), using original content.")
+    else:
+        print(f"[{datetime.now().isoformat()}] Step 0 done. Japanese content formatted (paragraphs={len(content_jp_paragrap_list)}).")
 
-    translated = translate_to_vietnamese(content, title)
-    if not translated:
-        return None
+    # Không lưu paragraph cuối nếu nội dung từ "【時系列で見る】" / "この記事は有料記事です。" trở đi
+    content_jp_paragrap_list = filter_jp_paragraph_list_for_save(content_jp_paragrap_list)
 
-    # Nội dung ngắn: bỏ qua step 2 để tiết kiệm thời gian
-    if len(translated.strip()) < MIN_LENGTH_FOR_FORMAT:
-        print(f"[{datetime.now().isoformat()}] Step 1 done. Skipping format (content short).")
-        return translated
+    # Save content_jp_paragrap_list vào DB ngay sau format+split (trước khi dịch)
+    if on_jp_paragraphs_ready is not None:
+        on_jp_paragraphs_ready(content_jp_paragrap_list)
 
-    print(f"[{datetime.now().isoformat()}] Step 1 done. Formatting (step 2)...")
-    formatted = format_vietnamese_content(translated)
-    if formatted is not None:
-        print(f"[{datetime.now().isoformat()}] Translated and formatted successfully.")
-        return formatted
-    # Nếu step 2 lỗi, vẫn trả về bản dịch thô
-    return translated
+    print(f"[{datetime.now().isoformat()}] Translating (step 1) — {len(content_jp_paragrap_list)} paragraphs, map 1:1...")
+    content_vn_paragrap_list = translate_content_from_paragraph_list(content_jp_paragrap_list, title)
+    if not content_vn_paragrap_list:
+        return (content_jp_paragrap_list, content_vn_paragrap_list)
+
+    if on_vn_paragraphs_ready is not None:
+        on_vn_paragraphs_ready(content_vn_paragrap_list)
+
+    print(f"[{datetime.now().isoformat()}] Step 1 done.")
+    return (content_jp_paragrap_list, content_vn_paragrap_list)
 
 
-def translate_article_content(article) -> Optional[str]:
+def translate_article_content(
+    article,
+    on_jp_paragraphs_ready: Optional[Callable[[list[str]], None]] = None,
+    on_vn_paragraphs_ready: Optional[Callable[[list[str]], None]] = None,
+) -> tuple[list[str], list[str]]:
     """
     Translate article content to Vietnamese.
-    
-    Args:
-        article: Article object with content and title
-    
+    on_jp_paragraphs_ready: gọi ngay sau format+split với content_jp_paragrap_list (để save DB).
+    on_vn_paragraphs_ready: gọi sau khi dịch xong từng đoạn với content_vn_paragrap_list (map 1:1).
+
     Returns:
-        Formatted Vietnamese content
+        (content_jp_paragrap_list, content_vn_paragrap_list).
     """
     if not article.content:
-        return None
-    
-    return translate_and_format(article.content, article.title)
+        return ([], [])
+    return translate_and_format(
+        article.content,
+        article.title,
+        on_jp_paragraphs_ready=on_jp_paragraphs_ready,
+        on_vn_paragraphs_ready=on_vn_paragraphs_ready,
+    )

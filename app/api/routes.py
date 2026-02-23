@@ -9,6 +9,41 @@ from app.seo import get_seo_for_page, seo_to_dict
 
 router = APIRouter(prefix="/api", tags=["articles"])
 
+# Prefixes for JP paragraphs to hide from UI (remove item and same index in VN list).
+HIDE_JP_PREFIXES = ("【時系列で見る】", "この記事は有料記事です。")
+
+
+def _should_hide_jp_paragraph(text: str) -> bool:
+    s = str(text or "").strip()
+    if not s:
+        return False
+    if any(s.startswith(p) for p in HIDE_JP_PREFIXES):
+        return True
+    # Paywall notice "残りXX文字（全文YY文字）"
+    if "（全文" in s and "文字" in s:
+        return True
+    return False
+
+
+def _filter_paragraph_lists_for_response(doc: dict) -> dict:
+    """Remove any JP paragraph that starts with HIDE_JP_PREFIXES and the same index in content_vn_paragrap_list."""
+    jp_list = doc.get("content_jp_paragrap_list")
+    vn_list = doc.get("content_vn_paragrap_list")
+    if not jp_list or not (isinstance(jp_list, list) and len(jp_list) > 0):
+        return doc
+    new_jp = []
+    new_vn = []
+    for i in range(len(jp_list)):
+        if _should_hide_jp_paragraph(jp_list[i]):
+            continue
+        new_jp.append(jp_list[i])
+        if vn_list and isinstance(vn_list, list) and i < len(vn_list):
+            new_vn.append(vn_list[i])
+    result = {**doc}
+    result["content_jp_paragrap_list"] = new_jp
+    result["content_vn_paragrap_list"] = new_vn if vn_list is not None else doc.get("content_vn_paragrap_list")
+    return result
+
 
 class ArticleResponse(BaseModel):
     """Article response model."""
@@ -26,7 +61,8 @@ class ArticleResponse(BaseModel):
     published: Optional[datetime] = None
     crawled_at: datetime
     content: Optional[str] = None
-    content_VN: Optional[str] = None
+    content_jp_paragrap_list: Optional[List[str]] = None
+    content_vn_paragrap_list: Optional[List[str]] = None
 
 
 class ArticlesListResponse(BaseModel):
@@ -79,7 +115,7 @@ async def get_articles(
         ]
     
     if translated_only:
-        query["content_VN"] = {"$ne": None, "$exists": True}
+        query["content_vn_paragrap_list.0"] = {"$exists": True}
     
     total = col.count_documents(query)
     total_pages = (total + page_size - 1) // page_size
@@ -92,6 +128,7 @@ async def get_articles(
     for doc in cursor:
         doc["id"] = str(doc["_id"])
         doc.pop("_id", None)
+        doc = _filter_paragraph_lists_for_response(doc)
         articles.append(ArticleResponse(**doc))
     
     return ArticlesListResponse(
@@ -113,6 +150,7 @@ async def get_featured_articles(limit: int = Query(3, ge=1, le=5, description="N
     for doc in cursor:
         doc["id"] = str(doc["_id"])
         doc.pop("_id", None)
+        doc = _filter_paragraph_lists_for_response(doc)
         articles.append(ArticleResponse(**doc))
     return articles
 
@@ -131,6 +169,7 @@ async def get_article_by_id(article_id: str):
     if doc:
         doc["id"] = str(doc["_id"])
         doc.pop("_id", None)
+        doc = _filter_paragraph_lists_for_response(doc)
         return ArticleResponse(**doc)
     return {"error": "Article not found"}
 
@@ -167,7 +206,7 @@ async def get_stats():
     col = get_articles_collection()
     show_query = {"isShow": True}
     total = col.count_documents(show_query)
-    translated = col.count_documents({**show_query, "content_VN": {"$ne": None, "$exists": True}})
+    translated = col.count_documents({**show_query, "content_vn_paragrap_list.0": {"$exists": True}})
     
     categories = col.distinct("category", show_query)
     sources = col.distinct("source", show_query)
@@ -204,8 +243,10 @@ async def get_seo(
             return seo_to_dict(seo)
         doc = col.find_one({"_id": oid, "isShow": True})
         if doc:
-            title = doc.get("title_vn") or doc.get("title")
-            desc = (doc.get("summary_vn") or doc.get("summary") or doc.get("content") or doc.get("content_VN") or "")
+            title = doc.get("title") or doc.get("title_vn")
+            desc = (doc.get("summary_vn") or doc.get("summary") or doc.get("content") or "")
+            if not desc and doc.get("content_vn_paragrap_list"):
+                desc = " ".join(p[:200] for p in doc.get("content_vn_paragrap_list", [])[:3])
             img = doc.get("content_top_image") or doc.get("thumbnail")
             published = doc.get("published")
             published_iso = published.isoformat() if published else None

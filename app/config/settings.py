@@ -14,40 +14,20 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("MONGO_DB_NAME", "news_db")
 ARTICLES_COLLECTION = "articles"
 
-# RSS feeds by category (Category name -> list of feed URLs)
+# Nguồn tiếng Nhật: Mainichi RSS only (https://mainichi.jp/rss/)
 RSS_FEEDS_BY_CATEGORY = {
-    "Tin thế giới": [
-        "http://feeds.bbci.co.uk/news/world/rss.xml",
-    ],
-    "Kinh tế": [
-        "http://feeds.bbci.co.uk/news/business/rss.xml",
-    ],
-    "Công nghệ": [
-        "http://feeds.bbci.co.uk/news/technology/rss.xml",
-    ],
-    "Khoa học & Môi trường": [
-        "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-    ],
-    "Sức khỏe": [
-        "http://feeds.bbci.co.uk/news/health/rss.xml",
+    "Tin chính": [
+        "https://mainichi.jp/rss/etc/mainichi-flash.rss",   # ニュース速報（総合）
     ],
     "Thể thao": [
-        "http://feeds.bbci.co.uk/sport/rss.xml",
+        "https://mainichi.jp/rss/etc/mainichi-sports.rss",  # スポーツ
     ],
-    "Crypto": [
-        "https://www.coindesk.com/arc/outboundfeeds/rss/",
-        "https://cointelegraph.com/rss",
+    "Giải trí": [
+        "https://mainichi.jp/rss/etc/mainichi-enta.rss",    # エンタメ（芸能・映画・音楽）
     ],
-    "Robotics": [
-        "https://newatlas.com/robotics/index.rss",
+    "Chính luận": [
+        "https://mainichi.jp/rss/etc/opinion.rss",          # 社説・解説・コラム
     ],
-    "AI": [
-        "https://www.artificialintelligence-news.com/feed/",
-        "https://www.zdnet.com/topic/artificial-intelligence/rss.xml",
-    ],
-    # "Reuters World": [
-    #     "https://news.google.com/rss/search?q=site:reuters.com+world&hl=en-US&gl=US&ceid=US:en",
-    # ],
 }
 
 # Optional: request timeout (seconds)

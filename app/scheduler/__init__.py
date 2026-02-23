@@ -1,6 +1,8 @@
 from .job_runner import (
     run_all_crawlers,
     run_translation,
+    run_translate_paragraphs,
+    run_format_japanese,
     run_extract_hero_images,
     run_translate_title_summary,
     run_update_is_show,
@@ -10,6 +12,8 @@ from .job_runner import (
 __all__ = [
     "run_all_crawlers",
     "run_translation",
+    "run_translate_paragraphs",
+    "run_format_japanese",
     "run_extract_hero_images",
     "run_translate_title_summary",
     "run_update_is_show",

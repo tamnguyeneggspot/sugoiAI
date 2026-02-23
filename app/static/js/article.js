@@ -12,14 +12,10 @@ function escapeHtml(text) {
 
 function getCategoryColor(category) {
     const colors = {
-        'Tin thế giới': 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
-        'Kinh tế': 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
-        'Công nghệ': 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300',
-        'Khoa học & Môi trường': 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300',
-        'Sức khỏe': 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300',
+        'Tin chính': 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
         'Thể thao': 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
-        'Crypto': 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300',
-        'Reuters World': 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300',
+        'Giải trí': 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300',
+        'Chính luận': 'bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300',
     };
     return colors[category] || 'bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300';
 }
@@ -31,11 +27,16 @@ function markdownToHtml(text) {
     html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-5 mb-3">$1</h2>');
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold">$1</strong>');
     html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
-    html = html.replace(/^[-•] (.+)$/gm, '<li class="ml-4">$1</li>');
+    // List items: - , • (U+2022), ・ (U+30FB), ◆ (U+25C6 black diamond)
+    html = html.replace(/^[-•・◆]\s*(.+)$/gm, '<li class="ml-4">$1</li>');
     html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, function(match) {
         return '<ul class="list-disc list-inside my-3 space-y-1">' + match + '</ul>';
     });
-    html = html.replace(/\n\n/g, '</p><p class="mb-3">');
+    // Preserve single line breaks: \n\n = new paragraph, single \n = <br>
+    var paraPlaceholder = '<!--\u200bP-->';
+    html = html.replace(/\n\n/g, paraPlaceholder);
+    html = html.replace(/\n/g, '<br>');
+    html = html.replace(new RegExp(paraPlaceholder, 'g'), '</p><p class="mb-3">');
     html = '<p class="mb-3">' + html + '</p>';
     html = html.replace(/<p class="mb-3"><\/p>/g, '');
     html = html.replace(/<p class="mb-3">(\s*<h[23])/g, '$1');
@@ -43,6 +44,33 @@ function markdownToHtml(text) {
     html = html.replace(/<p class="mb-3">(\s*<ul)/g, '$1');
     html = html.replace(/(<\/ul>)\s*<\/p>/g, '$1');
     return html;
+}
+
+/** Render article body from content_jp_paragrap_list; each item has translate icon top-left (like title). */
+function renderContentFromParagraphList(jpList, vnList) {
+    var parts = [];
+    var translateIconSvg = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>';
+    for (var i = 0; i < jpList.length; i++) {
+        var jp = jpList[i];
+        var vn = (vnList && vnList[i]) ? vnList[i] : '';
+        var hasVn = !!vn;
+        var idSuffix = 'p' + i;
+        var block = '<div class="relative mt-4 first:mt-0">';
+        if (hasVn) {
+            block += '<button type="button" class="articleParaTranslateBtn flex-shrink-0 absolute top-0 left-0 p-1.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500 transition-colors z-10" title="Xem bản dịch tiếng Việt" aria-label="Xem bản dịch tiếng Việt" data-para-index="' + idSuffix + '">' + translateIconSvg + '</button>';
+            block += '<div class="pl-10 text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg">';
+        } else {
+            block += '<div class="text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg">';
+        }
+        block += '<div id="articleParaJp' + idSuffix + '" class="para-jp">' + markdownToHtml(jp || '') + '</div>';
+        if (hasVn) {
+            block += '<div id="articleParaVn' + idSuffix + '" class="mt-2 text-gray-600 dark:text-gray-400 hidden para-vn">' + markdownToHtml(vn) + '</div>';
+        }
+        block += '</div></div>';
+        parts.push(block);
+    }
+    var html = parts.join('');
+    return '<div class="article-paragraph-list">' + html + '</div>';
 }
 
 async function loadArticle() {
@@ -69,12 +97,12 @@ async function loadArticle() {
         }
         renderArticle(article);
         var base = window.location.origin;
-        var displayTitle = article.title_vn || article.title;
-        var rawDesc = (article.summary_vn || article.summary || article.content || article.content_VN || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        var displayTitle = article.title || article.title_vn;
+        var rawDesc = (article.summary_vn || article.summary || article.content || (article.content_vn_paragrap_list && article.content_vn_paragrap_list.length ? article.content_vn_paragrap_list.join(' ').slice(0, 500) : '') || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         var desc = rawDesc.length > 160 ? rawDesc.slice(0, 157).replace(/\s+\S*$/, '') + '...' : rawDesc;
         setPageSEO({
-            title: (displayTitle || 'Bài viết') + ' | News AI',
-            description: desc || (displayTitle || 'Đọc bài viết trên News AI.'),
+            title: (displayTitle || 'Bài viết') + ' | Sugoi News',
+            description: desc || (displayTitle || 'Đọc bài viết trên Sugoi News.'),
             keywords: (article.category ? article.category + ', ' : '') + 'tin tức, news, AI, dịch tin tức, tổng hợp tin',
             image: article.content_top_image || article.thumbnail || '',
             canonical_url: base + '/article?id=' + encodeURIComponent(article.id),
@@ -95,16 +123,21 @@ async function loadArticle() {
 }
 
 function renderArticle(article) {
-    const displayTitle = article.title_vn || article.title;
-    document.title = escapeHtml(displayTitle) + ' - News AI';
+    const displayTitle = article.title || article.title_vn;
+    document.title = escapeHtml(displayTitle) + ' - Sugoi News';
     const publishedDate = article.published ? new Date(article.published).toLocaleDateString('vi-VN', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     }) : '';
     const heroImage = article.content_top_image || article.thumbnail || 'https://picsum.photos/seed/' + encodeURIComponent(displayTitle) + '/1200/600';
-    const content = article.content_VN || article.content || (article.summary_vn || article.summary) || 'Không có nội dung chi tiết.';
+    const jpList = article.content_jp_paragrap_list;
+    const vnList = article.content_vn_paragrap_list || [];
+    const hasParagraphList = Array.isArray(jpList) && jpList.length > 0;
+    const contentHtml = hasParagraphList
+        ? renderContentFromParagraphList(jpList, vnList)
+        : '<div class="text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg">' + markdownToHtml((vnList.length ? vnList.join('\n\n') : null) || article.content || (article.summary_vn || article.summary) || 'Không có nội dung chi tiết.') + '</div>';
     const shareUrl = window.location.origin + '/article?id=' + encodeURIComponent(article.id);
     const shareTitle = displayTitle;
-    var rawDesc = (article.summary_vn || article.summary || article.content || article.content_VN || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    var rawDesc = (article.summary_vn || article.summary || article.content || (article.content_vn_paragrap_list && article.content_vn_paragrap_list.length ? article.content_vn_paragrap_list.join(' ').slice(0, 500) : '') || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     const shareDescription = rawDesc.length > 160 ? rawDesc.slice(0, 157).replace(/\s+\S*$/, '') + '...' : rawDesc;
 
     document.getElementById('articlePageContent').innerHTML = `
@@ -122,7 +155,19 @@ function renderArticle(article) {
                 </div>
             </div>
             <div class="p-6 sm:p-8 lg:p-10">
-                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4 leading-tight">${escapeHtml(displayTitle)}</h1>
+                <div class="flex items-start gap-3 mb-4">
+                    ${article.title_vn ? `
+                    <button type="button" id="articleToggleTitleVn" class="flex-shrink-0 p-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500 transition-colors mt-1" title="Xem bản dịch tiếng Việt" aria-label="Xem bản dịch tiếng Việt">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+                    </button>
+                    ` : ''}
+                    <div class="flex-1 min-w-0">
+                        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight">${escapeHtml(displayTitle)}</h1>
+                        ${article.title_vn ? `
+                        <p id="articleTitleVn" class="mt-2 text-lg sm:text-xl text-gray-600 dark:text-gray-400 leading-relaxed hidden">${escapeHtml(article.title_vn)}</p>
+                        ` : ''}
+                    </div>
+                </div>
                 <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
                     <span class="flex items-center">
                         <svg class="w-5 h-5 mr-2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -139,13 +184,29 @@ function renderArticle(article) {
                     </div>
                 </div>
                 <div class="prose prose-lg prose-gray dark:prose-invert max-w-none">
-                    <div class="text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg">${markdownToHtml(content)}</div>
+                    ${contentHtml}
                 </div>
                 <div class="mt-10 pt-8 border-t border-gray-100 dark:border-gray-700">
                     ${article.link ? '<p class="text-sm text-gray-500 dark:text-gray-400"><span class="font-medium text-gray-600 dark:text-gray-300">Nguồn:</span> <span class="break-all">' + escapeHtml(article.link) + '</span></p>' : ''}
                 </div>
             </div>
         </div>`;
+    var toggleBtn = document.getElementById('articleToggleTitleVn');
+    var titleVnEl = document.getElementById('articleTitleVn');
+    if (toggleBtn && titleVnEl) {
+        toggleBtn.addEventListener('click', function() {
+            titleVnEl.classList.toggle('hidden');
+        });
+    }
+    document.querySelectorAll('.articleParaTranslateBtn').forEach(function(btn) {
+        var idx = btn.getAttribute('data-para-index');
+        var vnEl = idx ? document.getElementById('articleParaVn' + idx) : null;
+        if (vnEl) {
+            btn.addEventListener('click', function() {
+                vnEl.classList.toggle('hidden');
+            });
+        }
+    });
     setupArticleShareBar();
 }
 
@@ -216,7 +277,7 @@ async function loadRelatedArticles(category, excludeId) {
         }
         section.classList.remove('hidden');
         grid.innerHTML = related.map(function(article) {
-            const displayTitle = article.title_vn || article.title;
+            const displayTitle = article.title || article.title_vn;
             const thumbnail = article.thumbnail || 'https://picsum.photos/seed/' + encodeURIComponent(displayTitle) + '/400/240';
             const url = '/article?id=' + encodeURIComponent(article.id);
             return '<a href="' + escapeHtml(url) + '" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md hover:border-gray-200 dark:hover:border-gray-600 transition-all block group">' +
