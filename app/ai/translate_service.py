@@ -191,10 +191,13 @@ def translate_content_from_paragraph_list(
     _keep_format = "Giữ nguyên format của đoạn gốc: cùng số dòng, gạch đầu dòng, tiêu đề (##), danh sách đánh số — chỉ dịch nội dung, không thay đổi cấu trúc."
     _vietnamese_only = "Bắt buộc: Kết quả phải 100% tiếng Việt. Không được để lại bất kỳ chữ tiếng Nhật (kanji, hiragana, katakana) nào trong bản dịch — mọi nội dung đều phải được dịch sang tiếng Việt."
     content_vn_paragrap_list: list[str] = []
+    total = len(content_jp_paragrap_list)
     for i, jp_para in enumerate(content_jp_paragrap_list):
         if not jp_para or not jp_para.strip():
             content_vn_paragrap_list.append("")
             continue
+        preview = (jp_para.strip()[:60] + "…") if len(jp_para.strip()) > 60 else jp_para.strip()
+        print(f"[Translate] Paragraph {i + 1}/{total}: {preview}")
         prompt = f"""Dịch đoạn văn sau từ tiếng Nhật sang tiếng Việt. Giữ nguyên tên riêng, địa danh, tên công ty. {_keep_format} {_vietnamese_only} {_only_output}
 """
         if title and i == 0:
