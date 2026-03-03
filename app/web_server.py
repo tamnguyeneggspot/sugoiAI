@@ -129,6 +129,15 @@ async def faq_page(request: Request):
     return HTMLResponse(content="<h1>FAQ page not found</h1>")
 
 
+@app.get("/googlea64e30f7786323f3.html", response_class=HTMLResponse, include_in_schema=False)
+async def google_verification():
+    """Serve Google Search Console verification file at root (required by Google)."""
+    path = STATIC_DIR / "googlea64e30f7786323f3.html"
+    if path.exists():
+        return HTMLResponse(content=path.read_text(encoding="utf-8"))
+    return HTMLResponse(content="not found", status_code=404)
+
+
 @app.get("/health")
 @limiter.exempt
 async def health_check(request: Request):
