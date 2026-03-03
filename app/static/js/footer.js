@@ -19,7 +19,7 @@ function renderFooter(options) {
     const footerHtml = `
     <footer class="bg-gray-900 dark:bg-black text-gray-300 mt-12 transition-colors">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-12 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+            <div class="py-12 grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
                 <!-- Brand -->
                 <div>
                     <a href="/" class="inline-flex items-center space-x-3 group">
@@ -33,6 +33,16 @@ function renderFooter(options) {
                             <p class="text-xs text-gray-400">${escapeHtml(tagline)}</p>
                         </div>
                     </a>
+                </div>
+
+                <!-- Liên kết (Giới thiệu, Hướng dẫn, FAQ) -->
+                <div>
+                    <h3 class="text-sm font-semibold text-white uppercase tracking-wider mb-4">Trang</h3>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="/about.html" class="hover:text-white transition-colors">Giới thiệu</a></li>
+                        <li><a href="/guide.html" class="hover:text-white transition-colors">Hướng dẫn</a></li>
+                        <li><a href="/faq.html" class="hover:text-white transition-colors">Câu hỏi thường gặp</a></li>
+                    </ul>
                 </div>
 
                 <!-- Tech / Status -->

@@ -6,7 +6,7 @@
  * - getFilterState() — đọc category hiện tại từ DOM
  */
 
-const FILTER_LIST_ITEM_BASE = 'block w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer border-l-2 border-transparent';
+const FILTER_LIST_ITEM_BASE = 'block w-full text-left px-3 py-3 min-h-[44px] flex items-center rounded-lg text-sm transition-colors cursor-pointer border-l-2 border-transparent';
 const FILTER_LIST_ITEM_ACTIVE = 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-600 dark:border-blue-500 font-medium';
 const FILTER_LIST_ITEM_INACTIVE = 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-100 dark:border-gray-600';
 

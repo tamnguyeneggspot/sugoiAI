@@ -16,7 +16,10 @@ SITE_NAME = "Sugoi News"
 SITE_TAGLINE = "Học tiếng Nhật qua tin tức - Tổng hợp & dịch bằng AI"
 DEFAULT_OG_IMAGE = "/static/img/og-default.png"  # optional fallback
 META_DESC_MAX_LEN = 160
-KEYWORDS_HOME = "tin tức, news, AI, dịch tin tức, tổng hợp tin, tin thế giới, kinh tế, công nghệ, crypto"
+KEYWORDS_HOME = (
+    "học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, tin tức Nhật Bản tiếng Việt, tổng hợp tin tức Nhật Bản, Mainichi dịch tiếng Việt, "
+    "học tiếng Nhật qua đọc tin tức, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, học từ vựng tiếng Nhật qua tin tức, đọc hiểu tiếng Nhật qua bài báo"
+)
 
 # All category names for "all categories" SEO (from config)
 def _all_category_names() -> List[str]:
@@ -104,8 +107,9 @@ def get_seo_for_page(
     if page_type == "home":
         seo_title = f"{SITE_NAME} - {SITE_TAGLINE}"
         seo_desc = (
-            "Nền tảng tổng hợp tin tức đa nguồn với dịch tự động sang tiếng Việt. "
-            "Cập nhật tin thế giới, kinh tế, công nghệ và crypto từ các nguồn uy tín."
+            "Học tiếng Nhật qua tin tức với bản dịch tiếng Việt tự động. "
+            "Đọc tin Nhật có dịch tiếng Việt miễn phí từ Mainichi và nguồn uy tín. "
+            "Tin tức Mainichi tiếng Việt, học từ vựng và đọc hiểu tiếng Nhật qua bài báo mỗi ngày."
         )
         keywords = KEYWORDS_HOME
         return SEOData(
@@ -149,9 +153,39 @@ def get_seo_for_page(
             )
             keywords = _keywords_all_categories()
         else:
-            seo_title = f"{cat_name} | {SITE_NAME}"
-            seo_desc = f"Tin tức mới nhất về {cat_name}. Tổng hợp và dịch sang tiếng Việt bởi {SITE_NAME}."
-            keywords = f"{cat_name}, tin tức, {KEYWORDS_HOME}"
+            # Category-specific SEO with targeted keywords
+            category_keywords = {
+                "Tin chính": {
+                    "title": f"Tin tức Nhật Bản - {cat_name} | {SITE_NAME}",
+                    "desc": f"Tin tức Nhật Bản mới nhất về {cat_name}. Đọc tin thời sự Nhật có bản dịch tiếng Việt, học từ vựng và cải thiện kỹ năng đọc hiểu tiếng Nhật.",
+                    "keywords": f"tin tức Nhật Bản, tin thời sự Nhật, {cat_name}, đọc tin Nhật có bản dịch, {KEYWORDS_HOME}"
+                },
+                "Thể thao": {
+                    "title": f"Tin thể thao Nhật Bản | {SITE_NAME}",
+                    "desc": f"Tin thể thao Nhật Bản mới nhất: bóng đá Nhật, sumo, bóng chày và các môn thể thao khác. Đọc tin thể thao có bản dịch tiếng Việt.",
+                    "keywords": f"tin thể thao Nhật Bản, bóng đá Nhật, tin thể thao, {cat_name}, đọc tin Nhật có bản dịch, {KEYWORDS_HOME}"
+                },
+                "Giải trí": {
+                    "title": f"Tin giải trí Nhật Bản | {SITE_NAME}",
+                    "desc": f"Tin giải trí Nhật Bản mới nhất: showbiz Nhật, phim ảnh, âm nhạc. Đọc tin giải trí có bản dịch tiếng Việt, cập nhật xu hướng văn hóa Nhật.",
+                    "keywords": f"tin giải trí Nhật Bản, showbiz Nhật, tin giải trí, {cat_name}, đọc tin Nhật có bản dịch, {KEYWORDS_HOME}"
+                },
+                "Chính luận": {
+                    "title": f"Chính luận & Bình luận Nhật Bản | {SITE_NAME}",
+                    "desc": f"Các bài xã luận và bình luận Nhật Bản về các vấn đề quan trọng. Đọc chính luận có bản dịch tiếng Việt để hiểu sâu hơn về xã hội Nhật.",
+                    "keywords": f"bình luận Nhật Bản, xã luận Nhật, chính luận, {cat_name}, đọc tin Nhật có bản dịch, {KEYWORDS_HOME}"
+                }
+            }
+            
+            cat_seo = category_keywords.get(cat_name, {
+                "title": f"{cat_name} | {SITE_NAME}",
+                "desc": f"Tin tức mới nhất về {cat_name}. Tổng hợp và dịch sang tiếng Việt bởi {SITE_NAME}.",
+                "keywords": f"{cat_name}, tin tức, {KEYWORDS_HOME}"
+            })
+            
+            seo_title = cat_seo["title"]
+            seo_desc = cat_seo["desc"]
+            keywords = cat_seo["keywords"]
         return SEOData(
             title=seo_title,
             description=_truncate(seo_desc) if not cat_name else seo_desc,

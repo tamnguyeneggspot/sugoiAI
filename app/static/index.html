@@ -4,19 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sugoi News - Học tiếng Nhật qua tin tức</title>
-    <meta name="description" content="Sugoi News - Đọc tin tức tiếng Nhật có bản dịch tiếng Việt, học từ vựng và đọc hiểu mỗi ngày.">
-    <meta name="keywords" content="tin tức tiếng Nhật, học tiếng Nhật, đọc tin Nhật, Sugoi News">
+    <meta name="description" content="Sugoi News - Học tiếng Nhật qua tin tức. Đọc tin Nhật có dịch tiếng Việt miễn phí từ Mainichi. Tin tức Mainichi tiếng Việt, học từ vựng và đọc hiểu tiếng Nhật qua bài báo mỗi ngày.">
+    <meta name="keywords" content="học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, tin tức Nhật Bản tiếng Việt, tổng hợp tin tức Nhật Bản, Mainichi dịch tiếng Việt, học tiếng Nhật qua đọc tin tức, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, học từ vựng tiếng Nhật qua tin tức, đọc hiểu tiếng Nhật qua bài báo, Sugoi News">
     <meta property="og:title" content="Sugoi News - Học tiếng Nhật qua tin tức">
-    <meta property="og:description" content="Đọc tin tức tiếng Nhật có bản dịch tiếng Việt - học từ vựng và đọc hiểu mỗi ngày.">
+    <meta property="og:description" content="Sugoi News - Học tiếng Nhật qua tin tức. Đọc tin Nhật có dịch tiếng Việt miễn phí từ Mainichi. Tin tức Mainichi tiếng Việt, học từ vựng và đọc hiểu tiếng Nhật qua bài báo mỗi ngày.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Sugoi News">
     <meta property="og:image" content="https://sugoi.aiti9.com/static/img/og-default.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:url" content="https://sugoi.aiti9.com/">
+    <link rel="canonical" href="https://sugoi.aiti9.com/">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://sugoi.aiti9.com/static/img/og-default.png">
     <meta name="twitter:title" content="Sugoi News - Học tiếng Nhật qua tin tức">
-    <meta name="twitter:description" content="Đọc tin tức tiếng Nhật có bản dịch tiếng Việt - học từ vựng và đọc hiểu mỗi ngày.">
+    <meta name="twitter:description" content="Sugoi News - Học tiếng Nhật qua tin tức. Đọc tin Nhật có dịch tiếng Việt miễn phí. Tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo mỗi ngày.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,9 +68,77 @@
             var page = 'home';
             if (search) page = 'search';
             else if (category) page = 'category';
-            else page = 'category';  // no filter = all categories
             fetchAndSetSEO({ page: page, category: category || undefined, search: search || undefined });
+            
+            // Inject Organization and WebSite schema
+            injectOrganizationAndWebSiteSchema();
         })();
+        
+        // SEO: Inject Organization and WebSite schema
+        function injectOrganizationAndWebSiteSchema() {
+            var baseUrl = window.location.origin;
+            
+            // Remove existing schemas if any
+            var existingOrg = document.querySelector('script[type="application/ld+json"][data-organization-schema]');
+            if (existingOrg) existingOrg.remove();
+            var existingSite = document.querySelector('script[type="application/ld+json"][data-website-schema]');
+            if (existingSite) existingSite.remove();
+            
+            // Organization schema (Schema.org)
+            var organizationSchema = {
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "name": "Sugoi News",
+                "url": baseUrl,
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": baseUrl + "/static/img/og-default.png",
+                    "width": 1200,
+                    "height": 630
+                },
+                "description": "Nền tảng tổng hợp tin tức Nhật Bản với bản dịch tiếng Việt tự động bằng AI. Học tiếng Nhật qua tin tức, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt.",
+                "sameAs": []
+            };
+            
+            var orgScript = document.createElement('script');
+            orgScript.type = 'application/ld+json';
+            orgScript.setAttribute('data-organization-schema', 'true');
+            orgScript.textContent = JSON.stringify(organizationSchema);
+            document.head.appendChild(orgScript);
+            
+            // WebSite schema with SearchAction (Schema.org)
+            var websiteSchema = {
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                "name": "Sugoi News",
+                "url": baseUrl,
+                "description": "Học tiếng Nhật qua tin tức - Đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo.",
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "Sugoi News",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": baseUrl + "/static/img/og-default.png",
+                        "width": 1200,
+                        "height": 630
+                    }
+                },
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": {
+                        "@type": "EntryPoint",
+                        "urlTemplate": baseUrl + "/?search={search_term_string}"
+                    },
+                    "query-input": "required name=search_term_string"
+                }
+            };
+            
+            var siteScript = document.createElement('script');
+            siteScript.type = 'application/ld+json';
+            siteScript.setAttribute('data-website-schema', 'true');
+            siteScript.textContent = JSON.stringify(websiteSchema);
+            document.head.appendChild(siteScript);
+        }
     </script>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -80,6 +150,62 @@
 
             <!-- Main Content - Right -->
             <div class="flex-1 min-w-0">
+                <!-- SEO: H1 và đoạn giới thiệu cho trang chủ -->
+                <section id="homeIntroSection" class="mb-8 hidden">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">Học tiếng Nhật qua tin tức</h1>
+                    <p class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                        Sugoi News là nền tảng <strong>tổng hợp tin tức Nhật Bản</strong> với <strong>bản dịch tiếng Việt</strong> tự động bằng AI. 
+                        <strong>Đọc tin Nhật có bản dịch</strong> từ các nguồn uy tín như <strong>tin tức Mainichi tiếng Việt</strong>, 
+                        học từ vựng và cải thiện kỹ năng đọc hiểu tiếng Nhật mỗi ngày. 
+                        <strong>Học tiếng Nhật qua đọc tin tức</strong> là cách hiệu quả để nâng cao trình độ; bạn có thể <strong>đọc hiểu tiếng Nhật qua bài báo</strong> thật mỗi ngày.
+                    </p>
+                    <p class="text-base text-gray-600 dark:text-gray-400 mb-4">
+                        Khám phá các chuyên mục: <strong>Tin chính</strong> (tin tức Nhật Bản, tin thời sự Nhật), 
+                        <strong>Thể thao</strong> (tin thể thao Nhật Bản, bóng đá Nhật), 
+                        <strong>Giải trí</strong> (tin giải trí Nhật Bản, showbiz Nhật), và 
+                        <strong>Chính luận</strong> (bình luận Nhật Bản, xã luận Nhật) 
+                        - tất cả đều có bản dịch song ngữ Nhật-Việt để bạn <strong>học từ vựng tiếng Nhật qua tin tức</strong> và luyện đọc hiểu qua bài báo hiệu quả hơn.
+                    </p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <strong>Đọc tin Nhật có dịch tiếng Việt miễn phí</strong> - Tất cả nội dung đều miễn phí và cập nhật hàng ngày.
+                    </p>
+                </section>
+
+                <!-- SEO: H2 + mô tả từng chuyên mục (chỉ trang chủ) -->
+                <section id="categoryIntroSection" class="mb-8 hidden">
+                    <div class="space-y-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Tin chính</h2>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">Tin tức Nhật Bản mới nhất, tin thời sự. Đọc tin chính có bản dịch tiếng Việt, học từ vựng và đọc hiểu tiếng Nhật.</p>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Thể thao</h2>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">Tin thể thao Nhật Bản: bóng đá Nhật, sumo, bóng chày. Đọc tin thể thao có bản dịch tiếng Việt.</p>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Giải trí</h2>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">Tin giải trí Nhật Bản, showbiz Nhật, phim ảnh, âm nhạc. Đọc tin giải trí có bản dịch tiếng Việt.</p>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Chính luận</h2>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">Bình luận Nhật Bản, xã luận Nhật. Đọc chính luận có bản dịch tiếng Việt để hiểu sâu xã hội Nhật.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SEO: H1/H2 + mô tả cho trang chuyên mục -->
+                <section id="categoryHeaderSection" class="mb-6 hidden">
+                    <h1 id="categoryH1" class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2"></h1>
+                    <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">Tin tức mới nhất trong chuyên mục</h2>
+                    <p id="categoryDescription" class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed"></p>
+                </section>
+
+                <!-- SEO: H1 cho trang tìm kiếm -->
+                <section id="searchHeaderSection" class="mb-6 hidden">
+                    <h1 id="searchH1" class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3"></h1>
+                    <p id="searchDescription" class="text-lg text-gray-700 dark:text-gray-300 leading-relaxed"></p>
+                </section>
+
                 <!-- Tin nổi bật (chỉ khi trang chủ, không filter) -->
                 <section id="featuredSection" class="hidden mb-8">
                     <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Tin nổi bật</h2>
@@ -95,7 +221,7 @@
                     </p>
                     <div class="flex items-center space-x-2">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Hiển thị:</span>
-                        <select id="pageSizeSelect" class="px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-gray-200">
+                        <select id="pageSizeSelect" class="min-h-[44px] pl-3 pr-8 py-2 text-base border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-gray-200 cursor-pointer">
                             <option value="30">30</option>
                             <option value="50">50</option>
                             <option value="100" selected>100</option>

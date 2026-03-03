@@ -1,4 +1,31 @@
-/* Custom styles for Sugoi News - Học tiếng Nhật qua tin tức */
+/* Sugoi News - Custom styles */
+
+/* --- Mobile & Responsive (SEO 2.5): base font & touch targets --- */
+html {
+    font-size: 16px; /* Avoid iOS zoom on input focus when font-size < 16px */
+}
+
+/* Touch-friendly: minimum 44x44px tap targets (Apple HIG / Material) */
+.touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mobile: ensure body text is readable (min 16px), small text at least 14px */
+@media (max-width: 768px) {
+    body {
+        font-size: 1rem;
+    }
+    .text-xs {
+        font-size: 0.875rem; /* 14px on mobile instead of 12px */
+    }
+    .article-card-summary {
+        font-size: 0.9375rem; /* 15px for card summary on mobile */
+    }
+}
 
 .line-clamp-2 {
     display: -webkit-box;
@@ -14,17 +41,17 @@
     overflow: hidden;
 }
 
-/* Card summary: sharp text, no blur (fix subpixel / font-smoothing) */
+/* Card summary: sharp text */
 .article-card-summary {
     -webkit-font-smoothing: subpixel-antialiased;
     -moz-osx-font-smoothing: auto;
     text-rendering: optimizeLegibility;
 }
 .dark .article-card-summary {
-    color: rgb(209 213 219); /* gray-300: higher contrast than gray-400 */
+    color: rgb(209 213 219);
 }
 
-/* Loading skeleton animation */
+/* Loading skeleton */
 .skeleton {
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
     background-size: 200% 100%;
@@ -40,18 +67,11 @@
     100% { background-position: -200% 0; }
 }
 
-/* Fade in animation for article cards */
 .fade-in {
     animation: fadeIn 0.3s ease-in-out;
 }
 
 @keyframes fadeIn {
-    from { 
-        opacity: 0; 
-        transform: translateY(10px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }

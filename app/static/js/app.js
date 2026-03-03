@@ -7,6 +7,16 @@ let totalPages = 1;
 let currentCategory = '';
 let currentSearch = '';
 
+// SEO DOM elements
+let homeIntroSection;
+let categoryIntroSection;
+let categoryHeaderSection;
+let searchHeaderSection;
+let categoryH1;
+let categoryDescription;
+let searchH1;
+let searchDescription;
+
 // DOM Elements
 let articlesGrid;
 let loadingSkeleton;
@@ -28,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderFilterSidebar('filterSidebarContainer');
     await loadFilterOptions({ category: currentCategory });
     initDomElements();
+    updateSEOHeaders(); // Show appropriate H1/H2 sections
     if (isHomeView()) {
         await loadFeatured();
     } else {
@@ -52,10 +63,74 @@ function initDomElements() {
     translatedArticlesEl = document.getElementById('translatedArticles');
     featuredSection = document.getElementById('featuredSection');
     featuredGrid = document.getElementById('featuredGrid');
+    // SEO sections
+    homeIntroSection = document.getElementById('homeIntroSection');
+    categoryIntroSection = document.getElementById('categoryIntroSection');
+    categoryHeaderSection = document.getElementById('categoryHeaderSection');
+    searchHeaderSection = document.getElementById('searchHeaderSection');
+    categoryH1 = document.getElementById('categoryH1');
+    categoryDescription = document.getElementById('categoryDescription');
+    searchH1 = document.getElementById('searchH1');
+    searchDescription = document.getElementById('searchDescription');
 }
 
 function isHomeView() {
     return !currentCategory && !currentSearch;
+}
+
+// SEO: Update headers based on current view
+function updateSEOHeaders() {
+    // Hide all sections first
+    if (homeIntroSection) homeIntroSection.classList.add('hidden');
+    if (categoryIntroSection) categoryIntroSection.classList.add('hidden');
+    if (categoryHeaderSection) categoryHeaderSection.classList.add('hidden');
+    if (searchHeaderSection) searchHeaderSection.classList.add('hidden');
+
+    if (isHomeView()) {
+        // Show home intro + category intro (H2 + mô tả chuyên mục)
+        if (homeIntroSection) homeIntroSection.classList.remove('hidden');
+        if (categoryIntroSection) categoryIntroSection.classList.remove('hidden');
+    } else if (currentSearch) {
+        // Show search header
+        if (searchHeaderSection) {
+            searchHeaderSection.classList.remove('hidden');
+            if (searchH1) {
+                searchH1.textContent = `Tìm kiếm: "${currentSearch}"`;
+            }
+            if (searchDescription) {
+                searchDescription.textContent = `Kết quả tìm kiếm tin tức cho "${currentSearch}" trên Sugoi News. Tổng hợp tin đa nguồn, dịch sang tiếng Việt.`;
+            }
+        }
+    } else if (currentCategory) {
+        // Show category header
+        if (categoryHeaderSection) {
+            categoryHeaderSection.classList.remove('hidden');
+            const categoryNames = {
+                'Tin chính': {
+                    title: 'Tin tức Nhật Bản - Tin chính',
+                    desc: 'Tin tức mới nhất về các sự kiện quan trọng tại Nhật Bản. Đọc tin chính có bản dịch tiếng Việt, học từ vựng và cải thiện kỹ năng đọc hiểu tiếng Nhật.'
+                },
+                'Thể thao': {
+                    title: 'Tin thể thao Nhật Bản',
+                    desc: 'Tin tức thể thao mới nhất từ Nhật Bản: bóng đá, sumo, bóng chày và các môn thể thao khác. Đọc tin thể thao có bản dịch tiếng Việt.'
+                },
+                'Giải trí': {
+                    title: 'Tin giải trí Nhật Bản',
+                    desc: 'Tin tức giải trí, showbiz, phim ảnh, âm nhạc Nhật Bản. Đọc tin giải trí có bản dịch tiếng Việt, cập nhật xu hướng văn hóa Nhật.'
+                },
+                'Chính luận': {
+                    title: 'Chính luận & Bình luận Nhật Bản',
+                    desc: 'Các bài xã luận, bình luận và phân tích về các vấn đề quan trọng tại Nhật Bản. Đọc chính luận có bản dịch tiếng Việt để hiểu sâu hơn về xã hội Nhật.'
+                }
+            };
+            const catInfo = categoryNames[currentCategory] || {
+                title: `${currentCategory} | Sugoi News`,
+                desc: `Tin tức mới nhất về ${currentCategory}. Tổng hợp và dịch sang tiếng Việt bởi Sugoi News.`
+            };
+            if (categoryH1) categoryH1.textContent = catInfo.title;
+            if (categoryDescription) categoryDescription.textContent = catInfo.desc;
+        }
+    }
 }
 
 async function loadFeatured() {
@@ -91,7 +166,7 @@ function createFeaturedCard(article, index) {
     const div = document.createElement('div');
     div.className = 'bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-300 cursor-pointer fade-in';
     div.style.animationDelay = `${index * 80}ms`;
-    div.onclick = () => { window.location.href = '/article?id=' + encodeURIComponent(article.id); };
+    div.onclick = () => { window.location.href = '/article/' + encodeURIComponent(article.id); };
 
     const displayTitle = article.title ?? '';
     const thumbnail = article.thumbnail || article.content_top_image || `https://picsum.photos/seed/${encodeURIComponent(displayTitle)}/400/240`;
@@ -108,6 +183,7 @@ function createFeaturedCard(article, index) {
         <div class="relative h-44 sm:h-52 overflow-hidden">
             <img src="${thumbnail}" alt="${escapeHtml(displayTitle)}"
                 class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                loading="lazy"
                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22240%22%3E%3Crect fill=%22%23e5e7eb%22 width=%22100%25%22 height=%22100%25%22/%3E%3Ctext fill=%22%239ca3af%22 font-family=%22sans-serif%22 font-size=%2216%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
             <div class="absolute top-3 left-3 flex flex-wrap gap-2">
                 <span class="px-2.5 py-1 text-xs font-medium rounded-full ${categoryColor}">
@@ -145,6 +221,10 @@ function applyParamsFromUrl() {
     currentCategory = category;
     if (searchInput) searchInput.value = search;
     if (searchInputMobile) searchInputMobile.value = search;
+    // Update SEO headers when params change
+    if (typeof updateSEOHeaders === 'function') {
+        updateSEOHeaders();
+    }
 }
 
 // Sync URL with current filter state (clear search from URL when user selects category)
@@ -166,6 +246,10 @@ function setupEventListeners() {
         if (searchInput) searchInput.value = '';
         if (searchInputMobile) searchInputMobile.value = '';
         updateUrlFromState();
+        updateSEOHeaders();
+        if (typeof fetchAndSetSEO === 'function') {
+            fetchAndSetSEO({ page: currentCategory ? 'category' : 'home', category: currentCategory || undefined, search: undefined });
+        }
         if (!isHomeView()) hideFeatured();
         loadArticles();
     });
@@ -176,6 +260,11 @@ function setupEventListeners() {
         searchTimeout = setTimeout(() => {
             currentSearch = e.target.value;
             currentPage = 1;
+            updateUrlFromState();
+            updateSEOHeaders();
+            if (typeof fetchAndSetSEO === 'function') {
+                fetchAndSetSEO({ page: currentSearch ? 'search' : 'home', category: currentCategory || undefined, search: currentSearch || undefined });
+            }
             loadArticles();
         }, 300);
     };
@@ -192,6 +281,10 @@ function setupEventListeners() {
         currentPage = 1;
         if (typeof setCategoryFilterValue === 'function') setCategoryFilterValue('');
         updateUrlFromState();
+        updateSEOHeaders();
+        if (typeof fetchAndSetSEO === 'function') {
+            fetchAndSetSEO({ page: currentSearch ? 'search' : 'home', category: undefined, search: currentSearch || undefined });
+        }
         if (!isHomeView()) hideFeatured();
         loadArticles();
     };
@@ -290,7 +383,7 @@ function createArticleCard(article, index) {
     const div = document.createElement('div');
     div.className = 'bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-300 cursor-pointer fade-in';
     div.style.animationDelay = `${index * 50}ms`;
-    div.onclick = () => { window.location.href = '/article?id=' + encodeURIComponent(article.id); };
+    div.onclick = () => { window.location.href = '/article/' + encodeURIComponent(article.id); };
 
     const displayTitle = article.title ?? '';
     const thumbnail = article.thumbnail || `https://picsum.photos/seed/${encodeURIComponent(displayTitle)}/400/240`;
@@ -307,6 +400,7 @@ function createArticleCard(article, index) {
         <div class="relative h-48 overflow-hidden">
             <img src="${thumbnail}" alt="${escapeHtml(displayTitle)}" 
                 class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                loading="lazy"
                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22240%22%3E%3Crect fill=%22%23e5e7eb%22 width=%22100%25%22 height=%22100%25%22/%3E%3Ctext fill=%22%239ca3af%22 font-family=%22sans-serif%22 font-size=%2216%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
             <div class="absolute top-3 left-3 flex flex-wrap gap-2">
                 <span class="px-2.5 py-1 text-xs font-medium rounded-full ${categoryColor}">
@@ -360,7 +454,7 @@ function renderPagination() {
 
     // Previous button
     const prevBtn = document.createElement('button');
-    prevBtn.className = `px-3 py-2 text-sm rounded-lg ${currentPage === 1 ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`;
+    prevBtn.className = `min-w-[44px] min-h-[44px] flex items-center justify-center px-3 py-2 text-sm rounded-lg ${currentPage === 1 ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`;
     prevBtn.innerHTML = `
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
@@ -411,7 +505,7 @@ function renderPagination() {
 
     // Next button
     const nextBtn = document.createElement('button');
-    nextBtn.className = `px-3 py-2 text-sm rounded-lg ${currentPage === totalPages ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`;
+    nextBtn.className = `min-w-[44px] min-h-[44px] flex items-center justify-center px-3 py-2 text-sm rounded-lg ${currentPage === totalPages ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`;
     nextBtn.innerHTML = `
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -431,7 +525,7 @@ function renderPagination() {
 // Create page button
 function createPageButton(page) {
     const btn = document.createElement('button');
-    btn.className = `w-10 h-10 text-sm rounded-lg transition-colors ${
+    btn.className = `min-w-[44px] min-h-[44px] flex items-center justify-center text-sm rounded-lg transition-colors ${
         page === currentPage 
             ? 'bg-blue-600 text-white font-medium' 
             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'

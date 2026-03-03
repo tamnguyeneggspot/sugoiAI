@@ -230,13 +230,14 @@ def translate_content_from_paragraph_list(
 
 def translate_title_and_summary(title: str, summary: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
     """
-    Translate title and summary to Vietnamese.
-    Returns (title_vn, summary_vn). Either can be None if translation failed or input was empty.
+    Translate title to Vietnamese. Summary is not translated — returned unchanged when provided.
+    Returns (title_vn, summary_vn). summary_vn is the original summary unchanged; title_vn can be None if translation failed.
     """
     if not ENABLE_TRANSLATION:
         return (None, None)
     title_vn = translate_short_text(title) if title else None
-    summary_vn = translate_short_text(summary) if summary else None
+    # Do not translate summary: keep original for display/storage
+    summary_vn = summary if summary else None
     return (title_vn, summary_vn)
 
 

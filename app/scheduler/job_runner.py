@@ -261,17 +261,23 @@ def update_article_title_summary_vn(article_id) -> bool:
 
 def run_translate_title_summary(limit: int = 0) -> int:
     """
-    Translate title and summary to Vietnamese for articles that don't have title_vn or summary_vn.
+    Translate title (and copy summary -> summary_vn) for articles that:
+    - don't have title_vn yet, AND
+    - have content_vn_paragrap_list with data (content đã được dịch).
     Saves results to title_vn and summary_vn.
     """
     col = get_articles_collection()
 
     query = {
-        "$or": [
-            {"title_vn": None},
-            {"title_vn": {"$exists": False}},
-            {"summary_vn": None},
-            {"summary_vn": {"$exists": False}},
+        "$and": [
+            # Title gốc phải có data
+            {"title": {"$exists": True, "$nin": [None, ""]}},
+            {"$or": [
+                {"title_vn": None},
+                {"title_vn": {"$exists": False}},
+            ]},
+            # Chỉ dịch title khi content đã được dịch (content_vn_paragrap_list có data)
+            {"content_vn_paragrap_list.0": {"$exists": True}},
         ]
     }
 
@@ -286,7 +292,8 @@ def run_translate_title_summary(limit: int = 0) -> int:
         print("No articles need title/summary translation.")
         return 0
 
-    print(f"Found {total} articles to translate title/summary.")
+    total_in_db = col.count_documents({})
+    print(f"Found {total} articles to translate title/summary (total in DB: {total_in_db}).")
     translated_count = 0
 
     for i, doc in enumerate(articles_to_translate):

@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đang tải... - Sugoi News</title>
-    <meta name="description" content="Đọc bài viết trên Sugoi News - Học tiếng Nhật qua tin tức, dịch sang tiếng Việt.">
-    <meta name="keywords" content="tin tức tiếng Nhật, học tiếng Nhật, đọc tin Nhật, Sugoi News">
-    <meta property="og:title" content="Sugoi News - Học tiếng Nhật qua tin tức">
-    <meta property="og:description" content="Đọc bài viết trên Sugoi News - Học tiếng Nhật qua tin tức, dịch sang tiếng Việt.">
-    <meta property="og:type" content="website">
+    <title>Bài viết | Sugoi News</title>
+    <meta name="description" content="Đọc tin Nhật có dịch tiếng Việt miễn phí trên Sugoi News. Tin tức Mainichi tiếng Việt, học từ vựng và đọc hiểu tiếng Nhật qua bài báo.">
+    <meta name="keywords" content="tin tức Nhật Bản, học tiếng Nhật, đọc tin Nhật có bản dịch, học tiếng Nhật qua đọc tin tức, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, học từ vựng tiếng Nhật qua tin tức, đọc hiểu tiếng Nhật qua bài báo, Sugoi News">
+    <meta property="og:title" content="Bài viết | Sugoi News">
+    <meta property="og:description" content="Đọc tin Nhật có dịch tiếng Việt miễn phí. Tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo.">
+    <meta property="og:type" content="article">
     <meta property="og:site_name" content="Sugoi News">
     <meta property="og:image" content="https://sugoi.aiti9.com/static/img/og-default.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:url" content="https://sugoi.aiti9.com/article">
+    <link rel="canonical" href="https://sugoi.aiti9.com/article">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://sugoi.aiti9.com/static/img/og-default.png">
-    <meta name="twitter:title" content="Sugoi News - Học tiếng Nhật qua tin tức">
-    <meta name="twitter:description" content="Đọc bài viết trên Sugoi News - Học tiếng Nhật qua tin tức, dịch sang tiếng Việt.">
+    <meta name="twitter:title" content="Bài viết | Sugoi News">
+    <meta name="twitter:description" content="Đọc tin Nhật có dịch tiếng Việt miễn phí. Tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,46 +51,33 @@
     <script src="/static/js/theme.js"></script>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/seo.js"></script>
-    <script src="/static/js/filter.js"></script>
-    <script src="/static/js/article.js"></script>
     <script>renderHeader({ linkLogo: true, showStats: true });</script>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="flex flex-col lg:flex-row gap-6">
-            <!-- Filters Sidebar (shared filter.js) -->
-            <aside id="filterSidebarContainer" class="lg:w-64 flex-shrink-0">
-                <!-- Rendered by filter.js -->
-            </aside>
+            <aside id="filterSidebarContainer" class="lg:w-64 flex-shrink-0"></aside>
+            <div class="flex-1 min-w-0">
+                <!-- SEO: Nội dung bài viết (H1, breadcrumb, time, nội dung do article.js render) -->
+                <div id="articlePageContent">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 text-center">
+                        <p class="text-gray-600 dark:text-gray-400">Đang tải bài viết...</p>
+                    </div>
+                </div>
 
-            <!-- Article content -->
-            <article class="flex-1 min-w-0 max-w-4xl">
-        <div id="articlePageContent">
-            <div class="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
-                <svg class="w-12 h-12 animate-spin text-blue-500 mb-4" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p>Đang tải bài viết...</p>
+                <!-- Bài viết cùng chuyên mục -->
+                <section id="relatedSection" class="mt-10 hidden">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Bài viết cùng chuyên mục</h2>
+                    <div id="relatedArticlesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+                </section>
             </div>
         </div>
+    </main>
 
-        <div id="relatedSection" class="mt-8 hidden">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
-                </svg>
-                Bài viết cùng danh mục
-            </h2>
-            <div id="relatedArticlesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
-        </div>
-    </article>
-        </div>
-    </div>
-
-    <!-- Footer (rendered by footer.js) -->
     <div id="footer-container"></div>
     <script src="/static/js/footer.js"></script>
     <script>renderFooter();</script>
-    <script src="/static/js/scroll-top.js"></script>
+
+    <script src="/static/js/filter.js"></script>
+    <script src="/static/js/article.js"></script>
 </body>
 </html>

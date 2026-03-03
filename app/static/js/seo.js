@@ -67,7 +67,10 @@
         if (image && !/^https?:\/\//i.test(image)) {
             image = baseUrl + (image.indexOf('/') === 0 ? image : '/' + image);
         }
-        if (canonicalUrl && !/^https?:\/\//i.test(canonicalUrl)) {
+        // If no canonical URL provided, use current URL (without hash/fragment)
+        if (!canonicalUrl) {
+            canonicalUrl = window.location.origin + window.location.pathname + window.location.search;
+        } else if (!/^https?:\/\//i.test(canonicalUrl)) {
             canonicalUrl = baseUrl + (canonicalUrl.indexOf('/') === 0 ? canonicalUrl : '/' + canonicalUrl);
         }
         var currentUrl = window.location.href;
@@ -82,7 +85,11 @@
         setOrCreateMeta('og:type', ogType, true);
         setOrCreateMeta('og:site_name', SITE_NAME, true);
         setOrCreateMeta('og:url', currentUrl, true);
-        if (image) setOrCreateMeta('og:image', image, true);
+        if (image) {
+            setOrCreateMeta('og:image', image, true);
+            setOrCreateMeta('og:image:width', '1200', true);
+            setOrCreateMeta('og:image:height', '630', true);
+        }
 
         setOrCreateMeta('twitter:card', 'summary_large_image', false);
         setOrCreateMeta('twitter:title', title, false);
@@ -99,9 +106,44 @@
     }
 
     /**
+     * Fallback SEO for category pages (when /api/seo fails). Matches app.js categoryNames.
+     */
+    function getCategorySEOFallback(categoryName) {
+        var map = {
+            'Tin chính': {
+                title: 'Tin tức Nhật Bản - Tin chính',
+                description: 'Tin tức mới nhất về các sự kiện quan trọng tại Nhật Bản. Đọc tin chính có bản dịch tiếng Việt, học từ vựng và cải thiện kỹ năng đọc hiểu tiếng Nhật.',
+                keywords: 'tin tức Nhật Bản, tin thời sự Nhật, học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, học tiếng Nhật qua đọc tin tức, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, học từ vựng tiếng Nhật qua tin tức, đọc hiểu tiếng Nhật qua bài báo, Sugoi News'
+            },
+            'Thể thao': {
+                title: 'Tin thể thao Nhật Bản',
+                description: 'Tin tức thể thao mới nhất từ Nhật Bản: bóng đá, sumo, bóng chày và các môn thể thao khác. Đọc tin thể thao có bản dịch tiếng Việt.',
+                keywords: 'tin thể thao Nhật Bản, bóng đá Nhật, học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo, Sugoi News'
+            },
+            'Giải trí': {
+                title: 'Tin giải trí Nhật Bản',
+                description: 'Tin tức giải trí, showbiz, phim ảnh, âm nhạc Nhật Bản. Đọc tin giải trí có bản dịch tiếng Việt, cập nhật xu hướng văn hóa Nhật.',
+                keywords: 'tin giải trí Nhật Bản, showbiz Nhật, học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo, Sugoi News'
+            },
+            'Chính luận': {
+                title: 'Chính luận & Bình luận Nhật Bản',
+                description: 'Các bài xã luận, bình luận và phân tích về các vấn đề quan trọng tại Nhật Bản. Đọc chính luận có bản dịch tiếng Việt để hiểu sâu hơn về xã hội Nhật.',
+                keywords: 'bình luận Nhật Bản, xã luận Nhật, học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo, Sugoi News'
+            }
+        };
+        var info = map[categoryName];
+        if (info) return info;
+        return {
+            title: categoryName,
+            description: 'Tin tức mới nhất về ' + categoryName + '. Tổng hợp và dịch sang tiếng Việt bởi Sugoi News. Học tiếng Nhật qua tin tức.',
+            keywords: categoryName + ', học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, đọc hiểu tiếng Nhật qua bài báo, Sugoi News'
+        };
+    }
+
+    /**
      * Fetch SEO data from API and apply. Use for home, category, search, or article (with article_id).
      * @param {Object} params - { page: 'home'|'article'|'category'|'search'|'not_found', article_id?, category?, search? }
-     * @returns {Promise<Object>} - Fetched SEO object (or default home SEO on error)
+     * @returns {Promise<Object>} - Fetched SEO object (or default/fallback SEO on error)
      */
     function fetchAndSetSEO(params) {
         params = params || {};
@@ -110,19 +152,35 @@
         if (params.article_id) qs.set('article_id', params.article_id);
         if (params.category) qs.set('category', params.category);
         if (params.search) qs.set('search', params.search);
+        var baseUrl = window.location.origin.replace(/\/$/, '');
         return fetch('/api/seo?' + qs.toString()).then(function (r) {
             return r.json();
         }).then(function (data) {
-            data.base_url = window.location.origin;
+            data.base_url = baseUrl;
             setPageSEO(data);
             return data;
         }).catch(function () {
-            setPageSEO({
-                title: SITE_NAME + ' - Học tiếng Nhật qua tin tức',
-                description: 'Nền tảng tổng hợp tin tức đa nguồn với dịch tự động sang tiếng Việt. Cập nhật tin thế giới, kinh tế, công nghệ và crypto từ các nguồn uy tín.',
-                keywords: 'tin tức, news, AI, dịch tin tức, tổng hợp tin, tin thế giới, kinh tế, công nghệ, crypto',
-                og_type: 'website'
-            });
+            var page = params.page || 'home';
+            var opts = { base_url: baseUrl, og_type: 'website' };
+            if (page === 'category' && params.category) {
+                var catSEO = getCategorySEOFallback(params.category);
+                opts.title = (catSEO.title || params.category) + ' | ' + SITE_NAME;
+                opts.description = (catSEO.description && catSEO.description.length > META_DESC_MAX)
+                    ? catSEO.description.slice(0, META_DESC_MAX - 3).replace(/\s+\S*$/, '') + '...'
+                    : (catSEO.description || '');
+                opts.keywords = catSEO.keywords || '';
+                opts.canonical_url = baseUrl + '/?category=' + encodeURIComponent(params.category);
+            } else if (page === 'search' && params.search) {
+                opts.title = 'Tìm kiếm: ' + params.search + ' | ' + SITE_NAME;
+                opts.description = 'Kết quả tìm kiếm tin tức cho "' + params.search + '" trên Sugoi News. Tổng hợp tin đa nguồn, dịch sang tiếng Việt. Học tiếng Nhật qua tin tức.';
+                opts.keywords = params.search + ', tìm kiếm tin tức Nhật Bản, Sugoi News';
+                opts.canonical_url = baseUrl + '/?search=' + encodeURIComponent(params.search);
+            } else {
+                opts.title = SITE_NAME + ' - Học tiếng Nhật qua tin tức';
+                opts.description = 'Sugoi News - Học tiếng Nhật qua tin tức. Đọc tin Nhật có dịch tiếng Việt miễn phí từ Mainichi. Tin tức Mainichi tiếng Việt, học từ vựng và đọc hiểu tiếng Nhật qua bài báo mỗi ngày.';
+                opts.keywords = 'học tiếng Nhật qua tin tức, đọc tin Nhật có bản dịch, tin tức Nhật Bản tiếng Việt, học tiếng Nhật qua đọc tin tức, đọc tin Nhật có dịch tiếng Việt miễn phí, tin tức Mainichi tiếng Việt, học từ vựng tiếng Nhật qua tin tức, đọc hiểu tiếng Nhật qua bài báo, Sugoi News';
+            }
+            setPageSEO(opts);
             return null;
         });
     }
